@@ -2,6 +2,11 @@
   "color": {
     "primary": "#4F46ED",
     "secondary": "#06B6D4",
-    "danger": "#EF4444"
+    "danger": "#EF4444",
+    "success": "#22C55E",
+    "warning": "#FACC15",
+    "info": "#3B82F6",
+    "light": "#F3F4F6",
+    "dark": "#111827"
   }
 }
