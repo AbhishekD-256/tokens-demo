@@ -1,5 +1,11 @@
 # tokens-demo
 
+## 1.2.0
+
+### Minor Changes
+
+- 6d41ba7: updated lg fontsize token to 20px
+
 ## 1.1.1
 
 ### Patch Changes
