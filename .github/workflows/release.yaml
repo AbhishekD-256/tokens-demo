@@ -1,0 +1,130 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  version-and-tag:
+    if: github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Version packages with Changesets
+        id: version
+        run: |
+          pnpm version-packages
+          VERSION="$(node -p "require('./package.json').version")"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if git diff --quiet; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push version changes
+        if: steps.version.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): v${{ steps.version.outputs.version }}"
+          git push origin HEAD:main
+
+      - name: Create and push tag
+        if: steps.version.outputs.has_changes == 'true'
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"
+
+  create-github-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build token JSON
+        run: |
+          mkdir -p build
+          node scripts/build.js
+
+      - name: Prepare release notes from changelog
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          VERSION="${TAG_NAME#v}"
+          export VERSION
+
+          node <<'NODE'
+          const fs = require('fs');
+
+          const version = process.env.VERSION;
+          const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+          const lines = changelog.split(/\r?\n/);
+
+          let start = -1;
+          for (let i = 0; i < lines.length; i++) {
+            const heading = lines[i].trim();
+            if (heading === `## ${version}` || heading === `## v${version}`) {
+              start = i + 1;
+              break;
+            }
+          }
+
+          if (start === -1) {
+            console.error(`Changelog section not found for version ${version}`);
+            process.exit(1);
+          }
+
+          let end = lines.length;
+          for (let i = start; i < lines.length; i++) {
+            if (/^##\s+/.test(lines[i])) {
+              end = i;
+              break;
+            }
+          }
+
+          const notes = lines.slice(start, end).join('\n').trim();
+          fs.writeFileSync('RELEASE_NOTES.md', (notes || 'No release notes provided.') + '\n');
+          NODE
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
+          files: |
+            build/tokens.json

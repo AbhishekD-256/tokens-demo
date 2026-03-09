@@ -1,6 +1,6 @@
 {
   "typography": {
-    "fontFamily": "Inter",
+    "fontFamily": "Inter, sans-serif",
     "fontSize": {
       "sm": "12px",
       "md": "14px",
