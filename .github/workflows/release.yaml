@@ -120,3 +120,6 @@ jobs:
           body_path: RELEASE_NOTES.md
           files: |
             build/tokens.json
+            build/common.json
+            build/uk.json
+            build/us.json

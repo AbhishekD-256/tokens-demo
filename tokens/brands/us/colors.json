@@ -1,0 +1,12 @@
+{
+  "color": {
+    "primary": "#1E3A8A",
+    "secondary": "#B91C1C",
+    "danger": "#DC2626",
+    "success": "#15803D",
+    "warning": "#D97706",
+    "info": "#0EA5E9",
+    "light": "#F8FAFC",
+    "dark": "#111827"
+  }
+}
